@@ -10,7 +10,7 @@
 set -e
 
 BUILD_DIR=./build
-TARGET=pwndrop
+TARGET=pwndrop-ng
 mkdir -p "$BUILD_DIR"
 
 host_arch() {

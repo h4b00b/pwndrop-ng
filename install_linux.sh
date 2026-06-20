@@ -12,21 +12,21 @@ case "${ARCH:-$(uname -m)}" in
         ;;
 esac
 
-FILENAME=pwndrop-linux-${ARCH}
+FILENAME=pwndrop-ng-linux-${ARCH}
 mkdir -p ${FILENAME}
 cd ${FILENAME}
-echo "*** downloading pwndrop (${ARCH})."
+echo "*** downloading pwndrop-ng (${ARCH})."
 wget https://github.com/h4b00b/pwndrop-ng/releases/latest/download/${FILENAME}.tar.gz
 echo "*** unpacking."
 tar zxvf ${FILENAME}.tar.gz
-cd pwndrop
-chmod 700 pwndrop
-echo "*** stopping pwndrop."
-./pwndrop stop
+cd pwndrop-ng
+chmod 700 pwndrop-ng
+echo "*** stopping pwndrop-ng."
+./pwndrop-ng stop
 echo "*** installing."
-./pwndrop install
-./pwndrop start
-./pwndrop status
+./pwndrop-ng install
+./pwndrop-ng start
+./pwndrop-ng status
 echo "*** cleaning up."
 cd ../..
 rm -rf ${FILENAME}/

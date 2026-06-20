@@ -52,7 +52,7 @@ jobs:
         env:
           GOOS: linux
           GOARCH: ${{ matrix.goarch }}
-        run: go build -ldflags="-s -w" -o build/pwndrop-linux-${{ matrix.goarch }} ./
+        run: go build -ldflags="-s -w" -o build/pwndrop-ng-linux-${{ matrix.goarch }} ./
 
       - name: Vet
         env:
@@ -64,21 +64,21 @@ jobs:
         if: matrix.goarch == 'amd64'
         run: go test ./...
 
-      # Package as install_linux.sh expects: a pwndrop-linux-<arch>.tar.gz that
-      # contains a pwndrop/ dir holding the binary (the script does `cd pwndrop`
-      # after extracting).
+      # Package as install_linux.sh expects: a pwndrop-ng-linux-<arch>.tar.gz
+      # that contains a pwndrop-ng/ dir holding the binary (the script does
+      # `cd pwndrop-ng` after extracting).
       - name: Package tarball
         run: |
-          mkdir -p stage/pwndrop
-          cp build/pwndrop-linux-${{ matrix.goarch }} stage/pwndrop/pwndrop
-          chmod 700 stage/pwndrop/pwndrop
-          tar -C stage -czf build/pwndrop-linux-${{ matrix.goarch }}.tar.gz pwndrop
+          mkdir -p stage/pwndrop-ng
+          cp build/pwndrop-ng-linux-${{ matrix.goarch }} stage/pwndrop-ng/pwndrop-ng
+          chmod 700 stage/pwndrop-ng/pwndrop-ng
+          tar -C stage -czf build/pwndrop-ng-linux-${{ matrix.goarch }}.tar.gz pwndrop-ng
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pwndrop-linux-${{ matrix.goarch }}
-          path: build/pwndrop-linux-${{ matrix.goarch }}.tar.gz
+          name: pwndrop-ng-linux-${{ matrix.goarch }}
+          path: build/pwndrop-ng-linux-${{ matrix.goarch }}.tar.gz
 
   release:
     needs: build

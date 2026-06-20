@@ -85,11 +85,12 @@ Grab the release package for your architecture from: https://github.com/h4b00b/p
 Then:
 
 ```
-tar zxvf pwndrop-linux-amd64.tar.gz   # or -arm64
-./pwndrop stop
-./pwndrop install
-./pwndrop start
-./pwndrop status
+tar zxvf pwndrop-ng-linux-amd64.tar.gz   # or -arm64
+cd pwndrop-ng
+./pwndrop-ng stop
+./pwndrop-ng install
+./pwndrop-ng start
+./pwndrop-ng status
 ```
 
 #### From source code
@@ -122,7 +123,7 @@ You're good to go!
 You don't have to install **pwndrop** as a daemon and you can run it straight from the console.
 
 ```
-usage: pwndrop [start|stop|install|remove|status] [-config <config_path>] [-debug] [-no-autocert] [-no-dns] [-h]
+usage: pwndrop-ng [start|stop|install|remove|status] [-config <config_path>] [-debug] [-no-autocert] [-no-dns] [-h]
 
 daemon management:
     start           : start the daemon
@@ -159,7 +160,7 @@ redirect_url = "https://www.somedomain.com" # URL to which visitors will be redi
 secret_path = "/pwndrop"                    # secret URL path, which upon visiting will allow your browser to access the login page of the admin panel (make sure to change the default value)
 ```
 
-If you want to pre-configure your **pwndrop** instance before deployment using any of the installation scripts, put your configuration file at `/usr/local/pwndrop/pwndrop.ini` and it will be parsed the moment **pwndrop** daemon is first executed.
+If you want to pre-configure your **pwndrop NG** instance before deployment using any of the installation scripts, put your configuration file at `/usr/local/pwndrop-ng/pwndrop.ini` and it will be parsed the moment the daemon is first executed.
 
 ## Credits
 

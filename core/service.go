@@ -11,8 +11,8 @@ import (
 	"github.com/otiai10/copy"
 )
 
-const INSTALL_DIR = "/usr/local/pwndrop"
-const EXEC_NAME = "pwndrop"
+const INSTALL_DIR = "/usr/local/pwndrop-ng"
+const EXEC_NAME = "pwndrop-ng"
 
 type Service struct {
 	Daemon daemon.Daemon

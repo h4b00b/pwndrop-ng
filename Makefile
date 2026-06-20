@@ -1,4 +1,4 @@
-TARGET=pwndrop
+TARGET=pwndrop-ng
 BUILD_DIR=./build
 
 # Host arch detection so `make build` / `make install` on the box where you

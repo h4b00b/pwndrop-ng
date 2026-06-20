@@ -16,7 +16,7 @@ import (
 	"github.com/kgretzky/daemon"
 )
 
-const SERVICE_NAME = "pwndrop"
+const SERVICE_NAME = "pwndrop-ng"
 const SERVICE_DESCRIPTION = "pwndrop NG"
 
 var cfg_path = flag.String("config", "", "config file path")
@@ -26,7 +26,7 @@ var disable_dns = flag.Bool("no-dns", false, "disable DNS nameserver")
 var show_help = flag.Bool("h", false, "show help")
 
 func usage() {
-	fmt.Printf("usage: pwndrop [start|stop|install|remove|status] [-config <config_path>] [-debug] [-no-autocert] [-no-dns] [-h]\n\n")
+	fmt.Printf("usage: pwndrop-ng [start|stop|install|remove|status] [-config <config_path>] [-debug] [-no-autocert] [-no-dns] [-h]\n\n")
 }
 
 func main() {
