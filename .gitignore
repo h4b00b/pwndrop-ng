@@ -1,0 +1,9 @@
+build/pwndrop
+build/pwndrop.exe
+build/data/
+build/
+release/
+frontend/node_modules/
+frontend/dist/
+.review-findings.json
+.review.diff

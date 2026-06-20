@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [master, modernize]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        goarch: [amd64, arm64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        run: cd frontend && npm ci && npm run build
+
+      - name: Verify go.mod is tidy
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+
+      - name: Build (linux/${{ matrix.goarch }})
+        env:
+          GOOS: linux
+          GOARCH: ${{ matrix.goarch }}
+        run: go build -ldflags="-s -w" -o build/pwndrop-linux-${{ matrix.goarch }} ./
+
+      - name: Vet
+        env:
+          GOOS: linux
+          GOARCH: ${{ matrix.goarch }}
+        run: go vet ./...
+
+      - name: Test
+        # Tests run on the runner host (amd64); we only cross-compile the
+        # other targets above. arm64 tests would need qemu, which is out of
+        # scope for the normal CI.
+        if: matrix.goarch == 'amd64'
+        run: go test ./...
