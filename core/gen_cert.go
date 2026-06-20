@@ -7,8 +7,8 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"fmt"
-	"io/ioutil"
 	"math/big"
+	"os"
 	"time"
 
 	"github.com/kgretzky/pwndrop/utils"
@@ -63,11 +63,11 @@ func GenerateTLSCertificate(common string) (*tls.Certificate, error) {
 }
 
 func LoadTLSCertificate(pub_path string, pkey_path string) (*tls.Certificate, error) {
-	pkey, err := ioutil.ReadFile(pkey_path)
+	pkey, err := os.ReadFile(pkey_path)
 	if err != nil {
 		return nil, fmt.Errorf("TLS private key not found at: %s", pkey_path)
 	}
-	pubkey, err := ioutil.ReadFile(pub_path)
+	pubkey, err := os.ReadFile(pub_path)
 	if err != nil {
 		return nil, fmt.Errorf("TLS public key not found at: %s", pub_path)
 	}

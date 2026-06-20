@@ -10,8 +10,6 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	//"github.com/gorilla/mux"
-
 	"github.com/kgretzky/pwndrop/log"
 	"github.com/kgretzky/pwndrop/storage"
 	"github.com/kgretzky/pwndrop/utils"

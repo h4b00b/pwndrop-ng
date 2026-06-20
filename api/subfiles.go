@@ -40,8 +40,7 @@ func SubFileCreateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parent_file, err := storage.FileGet(fid)
-	if err != nil {
+	if _, err := storage.FileGet(fid); err != nil {
 		DumpResponse(w, err.Error(), http.StatusBadRequest, API_ERROR_FILE_NOT_FOUND, nil)
 		return
 	}
@@ -84,7 +83,6 @@ func SubFileCreateHandler(w http.ResponseWriter, r *http.Request) {
 		DumpResponse(w, err.Error(), http.StatusInternalServerError, API_ERROR_FILE_SAVE_FAILED, nil)
 		return
 	}
-	_ = parent_file // referenced only for the existence check above
 
 	DumpResponse(w, "ok", http.StatusOK, 0, f)
 }

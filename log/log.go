@@ -3,8 +3,6 @@ package log
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
-	"log"
 	"os"
 	"sync"
 	"time"
@@ -13,10 +11,8 @@ import (
 )
 
 var stdout io.Writer = color.Output
-var stderr io.Writer = color.Error
 var logf *os.File = nil
 var mtx_log *sync.Mutex = &sync.Mutex{}
-var enableOutput = true
 var verboseLevel = INFO
 
 const (
@@ -43,14 +39,6 @@ var LogLabels = map[int]string{
 	FATAL:     "!!!",
 }
 
-func EnableOutput(enable bool) {
-	enableOutput = enable
-}
-
-func SetOutput(o io.Writer) {
-	stdout = o
-}
-
 func SetVerbosityLevel(lvl int) {
 	verboseLevel = lvl
 }
@@ -62,10 +50,6 @@ func SetLogFile(path string) error {
 	}
 	logf = f
 	return nil
-}
-
-func NullLogger() *log.Logger {
-	return log.New(ioutil.Discard, "", 0)
 }
 
 func Debug(format string, args ...interface{}) {
@@ -168,9 +152,7 @@ func log_message(lvl int, mod int, format string, args ...interface{}) {
 	output := "[" + time_clr.Sprintf("%d-%02d-%02d %02d:%02d:%02d", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second()) + "] " + format_msg(lvl, mod, true, format, args...)
 	log_output := "[" + fmt.Sprintf("%d-%02d-%02d %02d:%02d:%02d", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second()) + "] " + format_msg(lvl, mod, false, format, args...)
 
-	if enableOutput {
-		fmt.Fprint(stdout, output+"\n")
-	}
+	fmt.Fprint(stdout, output+"\n")
 	if logf != nil {
 		logf.WriteString(log_output + "\n")
 		logf.Sync()

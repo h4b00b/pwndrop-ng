@@ -3,7 +3,6 @@ package utils
 import (
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/binary"
 	"fmt"
 	"net"
 	"net/http"
@@ -75,10 +74,10 @@ func ClientIP(r *http.Request, trustProxy bool) string {
 	return host
 }
 
-// GenRandomHash / GenRandomString / GenRandomUint64 panic on a crypto/rand
-// read failure. That failure mode is "kernel entropy source is gone", at which
-// point silently returning a zero-value token would create un-guessable URLs
-// that aren't actually un-guessable. Panic is the safer outcome.
+// GenRandomHash / GenRandomString panic on a crypto/rand read failure. That
+// failure mode is "kernel entropy source is gone", at which point silently
+// returning a zero-value token would create un-guessable URLs that aren't
+// actually un-guessable. Panic is the safer outcome.
 func GenRandomHash() string {
 	rdata := make([]byte, 64)
 	if _, err := rand.Read(rdata); err != nil {
@@ -98,14 +97,6 @@ func GenRandomString(n int) string {
 		buf[i] = lb[int(buf[i])%len(lb)]
 	}
 	return string(buf)
-}
-
-func GenRandomUint64() uint64 {
-	buf := make([]byte, 8)
-	if _, err := rand.Read(buf); err != nil {
-		panic(err)
-	}
-	return binary.LittleEndian.Uint64(buf)
 }
 
 func GetExecDir() string {

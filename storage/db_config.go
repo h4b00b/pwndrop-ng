@@ -79,13 +79,3 @@ func ConfigUpdate(id int, o *DbConfig) (*DbConfig, error) {
 	return o, nil
 }
 
-func ConfigDelete(id int) error {
-	o := &DbConfig{
-		ID: id,
-	}
-	err := db.DeleteStruct(o)
-	if err != nil {
-		return err
-	}
-	return nil
-}

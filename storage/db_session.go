@@ -15,15 +15,6 @@ func SessionCreate(o *DbSession) (*DbSession, error) {
 	return o, nil
 }
 
-func SessionGet(id int) (*DbSession, error) {
-	var o DbSession
-	err := db.One("ID", id, &o)
-	if err != nil {
-		return nil, err
-	}
-	return &o, nil
-}
-
 func SessionGetByToken(token string) (*DbSession, error) {
 	var o DbSession
 	err := db.One("Token", token, &o)

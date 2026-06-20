@@ -1,9 +1,5 @@
 package storage
 
-import (
-	"github.com/asdine/storm/q"
-)
-
 // DbDownloadLog records a single download (or redirect) of a hosted file.
 // Status values: "ok" (file served), "redirect" (handed off to RedirectPath),
 // "paused-facade" (served the facade content).
@@ -59,21 +55,4 @@ func DownloadLogClear() error {
 		_ = db.DeleteStruct(&o)
 	}
 	return nil
-}
-
-// DownloadLogDeleteOlderThan removes log entries older than the given epoch.
-// Returns the number deleted. A no-op if no entries match.
-func DownloadLogDeleteOlderThan(ts int64) (int, error) {
-	var os []DbDownloadLog
-	err := db.Select(q.Lt("Timestamp", ts)).Find(&os)
-	if err != nil {
-		if err.Error() == "not found" {
-			return 0, nil
-		}
-		return 0, err
-	}
-	for _, o := range os {
-		_ = db.DeleteStruct(&o)
-	}
-	return len(os), nil
 }

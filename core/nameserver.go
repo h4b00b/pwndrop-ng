@@ -45,7 +45,7 @@ func (n *Nameserver) handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	listen_ip := Cfg.GetListenIP()
 	log.Debug("dns: %s listen_ip: %s", qdomain, listen_ip)
 
-	if Cfg.GetListenIP() == "" {
+	if listen_ip == "" {
 		return
 	}
 
@@ -84,6 +84,3 @@ func (n *Nameserver) handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	w.WriteMsg(m)
 }
 
-func pdom(domain string) string {
-	return domain + "."
-}

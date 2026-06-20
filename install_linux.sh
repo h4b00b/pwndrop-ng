@@ -16,7 +16,7 @@ FILENAME=pwndrop-linux-${ARCH}
 mkdir -p ${FILENAME}
 cd ${FILENAME}
 echo "*** downloading pwndrop (${ARCH})."
-wget https://github.com/kgretzky/pwndrop/releases/latest/download/${FILENAME}.tar.gz
+wget https://github.com/h4b00b/pwndrop-ng/releases/latest/download/${FILENAME}.tar.gz
 echo "*** unpacking."
 tar zxvf ${FILENAME}.tar.gz
 cd pwndrop

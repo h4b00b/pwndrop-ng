@@ -22,10 +22,6 @@ func NewCertDb(cache_dir string) (*CertDb, error) {
 	return cdb, nil
 }
 
-func (cdb *CertDb) SetManagedHostnames(hosts ...string) {
-	cdb.AutocertMgr.HostPolicy = autocert.HostWhitelist(hosts...)
-}
-
 func (cdb *CertDb) hostPolicy(ctx context.Context, host string) error {
 	// accept all hosts for TLS certificate retrieval
 	return nil

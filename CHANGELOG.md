@@ -1,3 +1,11 @@
+****v2.0.2****
+- [x] Over-engineering / dead-code sweep across the Go side: removed unused exported funcs (`SessionGet`, `UserGet`, `ConfigDelete`, `DownloadLogDeleteOlderThan`, `SetManagedHostnames`, `NullLogger`, `EnableOutput`, `SetOutput`, `GenRandomUint64`, `handleNotFound`, `pdom`), the unused `API_ERROR_PASSWORDS_DONT_MATCH` constant, the dead `stderr` / `enableOutput` package vars, the commented-out cipher-suite block in `core/server.go` and the commented `FileList` loop in `storage/db_file.go`.
+- [x] Migrated off the deprecated `io/ioutil` package: `ioutil.Discard` → `io.Discard`, `ioutil.ReadFile` → `os.ReadFile` (`log/log.go`, `core/gen_cert.go`).
+- [x] Minor shrinks: deduped a `Cfg.GetListenIP()` call in the DNS handler, dropped a commented `gorilla/mux` import and a dead `_ = parent_file` placeholder in the sub-file upload handler.
+- [x] README rewritten so all upstream-specific bits (logo/title/demo asset URLs, oneliner, binary releases link, source `git clone`, Go 1.13, the `breakdev.org`/Digital-Ocean referral framing, the personal "Credits" thanks) point at `h4b00b/pwndrop-ng` or are clearly framed as upstream resources. `python -m SimpleHTTPServer` updated to Python 3. Build instructions now mention Go 1.25+, Node 22+, and the `make build-amd64 / build-arm64 / build-all` cross-compile targets.
+- [x] `install_linux.sh` now pulls release artifacts from `github.com/h4b00b/pwndrop-ng/releases/latest/download/` instead of upstream.
+- [x] Version constant bumped to `2.0.2`; frontend `package.json` synced to match.
+
 ****v2.0.1****
 - [x] Rebranded the project to **pwndrop NG**: frontend title, console banner, package name (`pwndrop-ng-frontend`), and topbar alt text now say "pwndrop NG". License unchanged (GPL3), original author credits preserved.
 - [x] Version constant bumped to `2.0.1`.

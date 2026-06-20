@@ -59,17 +59,6 @@ func FileList() ([]DbFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	/*
-		for _, dbo := range dbos {
-			log.Debug("filelist: sub_id: %d", dbo.RefSubFile)
-			if dbo.RefSubFile > 0 {
-				subf, err := SubFileGet(f.RefSubFile)
-				if err == nil {
-					jf.SubFile = subf
-				}
-			}
-			ret = append(ret, dbo)
-		}*/
 	return dbos, nil
 }
 

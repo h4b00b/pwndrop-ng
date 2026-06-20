@@ -1,7 +1,7 @@
 <p align="center">
-  <img alt="pwndrop logo" src="https://raw.githubusercontent.com/kgretzky/pwndrop/master/media/pwndrop-logo-512.png" height="120" />
+  <img alt="pwndrop logo" src="media/pwndrop-logo-512.png" height="120" />
   <p align="center">
-    <img alt="pwndrop title" src="https://raw.githubusercontent.com/kgretzky/pwndrop/master/media/pwndrop-title-black-512.png" height="40" />
+    <img alt="pwndrop title" src="media/pwndrop-title-black-512.png" height="40" />
   </p>
 </p>
 
@@ -9,10 +9,10 @@
 
 **pwndrop** is a self-deployable file hosting service for sending out red teaming payloads or securely sharing your private files over HTTP and WebDAV.
 
-If you've ever needed to quickly set up an nginx/apache web server to host your files and you were never happy with the limitations of `python -m SimpleHTTPServer`, **pwndrop** is definitely for you!
+If you've ever needed to quickly set up an nginx/apache web server to host your files and you were never happy with the limitations of `python -m http.server`, **pwndrop** is definitely for you!
 
 <p align="center">
-  <img alt="demo" src="https://raw.githubusercontent.com/kgretzky/pwndrop/master/media/demo1.gif" height="500" />
+  <img alt="demo" src="media/demo1.gif" height="500" />
 </p>
 
 With **pwndrop** you can:
@@ -45,28 +45,25 @@ Its main goal is to make file sharing as easy and intuitive as possible, while i
 
 Frontend of **pwndrop NG** is a Vue 3 single-page application built with Vite and embedded into the Go binary at compile time (`go:embed`). The backend serves a REST API and manages a local database, powered by Go.
 
-## Write-up
+## Upstream resources
 
-If you want to learn how to use **pwndrop** or you want to learn what new features were implemented in recent releases, make sure to check out the posts on my blog:
+These cover the original **pwndrop** workflow and still apply to the NG fork for everything outside the NG-specific features:
 
-https://breakdev.org/pwndrop
+- Blog write-up by Kuba Gretzky: <https://breakdev.org/pwndrop>
+- Video walk-through by Luke Turvey ([@TurvSec](https://twitter.com/TurvSec)):
 
-## Video guide
+  [![File and Phishing Payload Hosting using PwnDrop (Red Team) - Luke Turvey](https://img.youtube.com/vi/e3veSyIFvOE/0.jpg)](https://www.youtube.com/watch?v=e3veSyIFvOE)
 
-Take a look at the fantastic video made by Luke Turvey ([@TurvSec](https://twitter.com/TurvSec)), which fully explains how to get started using **pwndrop**.
-
-[![File and Phishing Payload Hosting using PwnDrop (Red Team) - Luke Turvey](https://img.youtube.com/vi/e3veSyIFvOE/0.jpg)](https://www.youtube.com/watch?v=e3veSyIFvOE)
+NG-specific changes (API tokens, notifications, filters, paste, burn, kill switch, …) are documented in [CHANGELOG.md](CHANGELOG.md).
 
 ## Prerequisites
 
-If you don't yet have the server to deploy to I highly recommend Digital Ocean. The cheapest $5/mo Debian 9 server with 25GB of storage space will work wonders for you. You can use my referral link to [get an extra $100 to spend on your servers in 60 days for free](https://m.do.co/c/50338abc7ffe).
+Register a domain and point its DNS A records to your VPS IP. You can also point the domain's `ns1` and `ns2` nameservers at the **pwndrop** instance IP — it will respond with valid DNS A replies on its own.
 
-Register a new domain and point its DNS A records to your VPS IP. You can also register a domain and point its `ns1` and `ns2` nameservers to **pwndrop** instance IP - it will automatically respond with valid DNS A replies.
-
-1. Registered domain name pointing to **pwndrop** instance IP as a DNS A records or as a nameserver.
+1. Registered domain name pointing to the **pwndrop** instance IP as a DNS A record or as a nameserver.
 2. Server with at least 512 MB RAM.
 
-If you want to set up **pwndrop** without a domain, check below how to set up a local instance, which will not auto-generate HTTPS certificates.
+If you want to set up **pwndrop** without a domain, see below for a local instance — it won't auto-generate HTTPS certificates.
 
 ## Installation
 
@@ -74,21 +71,21 @@ Make sure there aren't any DNS or HTTP(S) servers running before you attempt to 
 
 #### Oneliner
 
-I do not recommend running oneliners, before downloading and checking the script code, but if you are really in a hurry, here it is:
+Don't run oneliners without reading them first, but if you're in a hurry:
 ```
-curl https://raw.githubusercontent.com/kgretzky/pwndrop/master/install_linux.sh | sudo bash
+curl https://raw.githubusercontent.com/h4b00b/pwndrop-ng/main/install_linux.sh | sudo bash
 ```
 
-This will download the latest amd64 release binary and fully install a daemon running in a background.
+Auto-detects `amd64` / `arm64`, pulls the matching release binary, installs and starts the daemon.
 
 #### From binary
 
-First you need to download the release package you want from: https://github.com/kgretzky/pwndrop/releases
+Grab the release package for your architecture from: https://github.com/h4b00b/pwndrop-ng/releases
 
-Then do the following (this performs same actions to the oneliner):
+Then:
 
 ```
-tar zxvf pwndrop-linux-amd64.tar.gz
+tar zxvf pwndrop-linux-amd64.tar.gz   # or -arm64
 ./pwndrop stop
 ./pwndrop install
 ./pwndrop start
@@ -97,17 +94,17 @@ tar zxvf pwndrop-linux-amd64.tar.gz
 
 #### From source code
 
-First of all, make sure you have installed GO with version at least **1.13**: https://golang.org/doc/install
-
-Then do the following:
+You need Go **1.25+** (see [go.mod](go.mod)) and Node **22+** for the frontend build.
 
 ```
 sudo apt-get -y install git make
-git clone https://github.com/kgretzky/pwndrop
-cd pwndrop
-make
-make install
+git clone https://github.com/h4b00b/pwndrop-ng
+cd pwndrop-ng
+make            # builds the Vue frontend then embeds it via go:embed into the Go binary
+sudo make install
 ```
+
+`make` builds for the host architecture; use `make build-amd64`, `make build-arm64`, or `make build-all` to cross-compile.
 
 ## Quickstart
 
@@ -153,7 +150,7 @@ listen_ip = "190.33.86.22"                  # the external IP of your pwndrop in
 http_port = 80                              # listening port for HTTP and WebDAV
 https_port = 443                            # listening port for HTTPS
 data_dir = "./data"                         # directory path where data storage will reside (relative paths are from executable directory path)
-admin_dir = "./admin"                       # directory path where the admin panel files reside (relative paths are from executable directory path)
+admin_dir = "./admin"                       # OPTIONAL fallback: NG embeds the admin panel into the binary via go:embed; this is only used if the embedded FS is unavailable
 
 [setup]                                     # optional: put in if you want to pre-configure pwndrop (section will be deleted from the config file on first run)
 username = "admin"                          # username of the admin account
@@ -166,12 +163,11 @@ If you want to pre-configure your **pwndrop** instance before deployment using a
 
 ## Credits
 
-Huge thanks to [**@jaredhaight**](https://twitter.com/jaredhaight) for inspiring me to learn Vue, with his [Faction C2](https://www.factionc2.com/) framework!
-
-Also much thanks to all the people who gave me pre-release feedback and supported me with their opinions on the tool!
+- Original **pwndrop** by Kuba Gretzky ([@mrgretzky](https://twitter.com/mrgretzky)) — upstream design, original Vue panel, daemon harness, WebDAV/autocert plumbing.
+- **pwndrop NG** maintenance, hardening pass, and the NG-only features (API tokens, notifications, filters, paste, burn, kill switch, Vite/Vue 3 rebuild, embedded frontend) by **Hab00b**.
 
 ## License
 
-**pwndrop** is made by Kuba Gretzky ([@mrgretzky](https://twitter.com/mrgretzky)) and it's released under GPL3 license.
+**pwndrop** is made by Kuba Gretzky ([@mrgretzky](https://twitter.com/mrgretzky)) and released under GPL3.
 
-**pwndrop NG** is a fork maintained by **Hab00b**, released under the same GPL3 license. All modifications since `v1.0.2` are documented in [CHANGELOG.md](CHANGELOG.md), as required by GPL3 §5(a). The original copyright notice above is preserved unchanged.
+**pwndrop NG** is a fork maintained by **Hab00b**, released under the same GPL3 license. All modifications since upstream `v1.0.2` are documented in [CHANGELOG.md](CHANGELOG.md), as required by GPL3 §5(a). The original copyright notice is preserved unchanged.

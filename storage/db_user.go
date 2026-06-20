@@ -29,15 +29,6 @@ func UserList() ([]DbUser, error) {
 	return os, nil
 }
 
-func UserGet(id int) (*DbUser, error) {
-	var o DbUser
-	err := db.One("ID", id, &o)
-	if err != nil {
-		return nil, err
-	}
-	return &o, nil
-}
-
 func UserGetByName(username string) (*DbUser, error) {
 	var o DbUser
 	err := db.One("SearchName", strings.ToLower(username), &o)
