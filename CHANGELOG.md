@@ -1,3 +1,7 @@
+****v2.0.4****
+- [x] Admin page footer now also credits the NG fork (`made by @mrgretzky · NG fork by @h4b00b`) in `frontend/src/App.vue`; original upstream credit preserved. Frontend bundle rebuilt by CI.
+- [x] Version constant bumped to `2.0.4`; frontend `package.json` synced.
+
 ****v2.0.3****
 - [x] Renamed the build target and installed daemon from `pwndrop` to `pwndrop-ng` across `Makefile`, `build.sh`, the CI workflow, `install_linux.sh`, and the embedded constants (`SERVICE_NAME`, `INSTALL_DIR=/usr/local/pwndrop-ng`, `EXEC_NAME=pwndrop-ng`, `usage:` banner). Release artifacts are now published as `pwndrop-ng-linux-<arch>.tar.gz` and the oneliner / `./pwndrop-ng <cmd>` flow follows.
 - [x] **Upgrade note:** an existing v2.0.2 deployment must be torn down before installing v2.0.3 — run `./pwndrop remove` against the old binary first, then re-install with the new oneliner. The config filename (`pwndrop.ini`) is unchanged, but it now lives under `/usr/local/pwndrop-ng/` instead of `/usr/local/pwndrop/`; move it across manually if you want to preserve existing settings (`data/pwndrop.db` carries the actual state — back that up the same way).
