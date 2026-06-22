@@ -37,7 +37,8 @@
       <a href="#/"><img src="/img/pwndrop-title.png" alt="pwndrop NG" /></a>
     </div>
     <div class="bg-footer">
-      made by <a href="https://twitter.com/mrgretzky" target="_blank">@mrgretzky</a>
+      made by <a href="https://twitter.com/mrgretzky" target="_blank">@mrgretzky</a> &middot;
+      NG fork by <a href="https://github.com/h4b00b" target="_blank">@h4b00b</a>
     </div>
     <div class="bg-version">
       version {{ version }}
