@@ -368,6 +368,11 @@ export default {
       editShow: false,
       uploads: [],
       next_key: 0,
+      // Files above this size go through the chunked upload protocol so
+      // each POST body stays under Cloudflare's free-plan 100 MB cap. The
+      // backend suggests its own chunk size at /init; this only decides
+      // which client path runs.
+      CHUNKED_THRESHOLD: 80 * 1024 * 1024,
       file_edit: {
         create_time: 0,
         fsize: 0,
@@ -474,42 +479,90 @@ export default {
         vm.uploads.push(item)
         this.next_key += 1
 
-        const formData = new FormData()
-        formData.append('file', file)
-        api
-          .post('/files', formData, {
-            headers: { 'content-type': 'multipart/form-data' },
-            onUploadProgress(progressEvent) {
-              const j = vm.findFileIndexById(item_id)
-              if (j != -1 && progressEvent.total) {
-                vm.uploads[j].progress = Math.floor((progressEvent.loaded / progressEvent.total) * 100)
-              }
+        const onProgress = (loaded, total) => {
+          const j = vm.findFileIndexById(item_id)
+          if (j != -1 && total) {
+            vm.uploads[j].progress = Math.floor((loaded / total) * 100)
+          }
+        }
+        const onDone = (it) => {
+          const j = vm.findFileIndexById(item_id)
+          if (j != -1) {
+            const ut = vm.uploads[j]
+            ut.id = it.id
+            ut.url_path = it.url_path
+            ut.redirect_path = it.redirect_path
+            ut.wdav_path = it.wdav_path
+            ut.mime_type = it.mime_type
+            ut.sub_mime_type = it.sub_mime_type
+            ut.orig_mime_type = it.orig_mime_type
+            ut.progress = 100
+          }
+          vm.syncServerInfo()
+        }
+        const onFail = (err) => {
+          console.log(err)
+          const j = vm.findFileIndexById(item_id)
+          if (j != -1) vm.uploads.splice(j, 1)
+        }
+
+        const p = file.size > vm.CHUNKED_THRESHOLD
+          ? vm.uploadChunked(file, onProgress)
+          : vm.uploadMultipart(file, onProgress)
+        p.then(onDone).catch(onFail)
+      }
+    },
+    uploadMultipart(file, onProgress) {
+      const formData = new FormData()
+      formData.append('file', file)
+      return api
+        .post('/files', formData, {
+          headers: { 'content-type': 'multipart/form-data' },
+          onUploadProgress(pe) { onProgress(pe.loaded, pe.total) },
+        })
+        .then((response) => response.data.data)
+    },
+    // uploadChunked posts the file as a sequence of sub-100MB chunks so the
+    // request bodies fit through Cloudflare's free-plan body cap. Server
+    // tracks a temp blob per upload_id; complete promotes it into a real
+    // DbFile and returns the same shape uploadMultipart does.
+    async uploadChunked(file, onProgress, replaceFid) {
+      const init = await api.post('/files/chunked/init', {
+        name: file.name,
+        mime_type: file.type || 'application/octet-stream',
+        total_size: file.size,
+      })
+      const upload_id = init.data.data.upload_id
+      const chunk_size = init.data.data.chunk_size
+
+      let sent = 0
+      try {
+        while (sent < file.size) {
+          const end = Math.min(sent + chunk_size, file.size)
+          const chunk = file.slice(sent, end)
+          const offsetAtStart = sent
+          // eslint-disable-next-line no-await-in-loop
+          await api.post('/files/chunked/' + upload_id, chunk, {
+            headers: {
+              'Content-Type': 'application/octet-stream',
+              'X-Chunk-Offset': String(offsetAtStart),
+            },
+            onUploadProgress(pe) {
+              onProgress(offsetAtStart + (pe.loaded || 0), file.size)
             },
           })
-          .then((response) => {
-            const j = vm.findFileIndexById(item_id)
-            if (j != -1) {
-              const it = response.data.data
-              const ut = vm.uploads[j]
-              ut.id = it.id
-              ut.url_path = it.url_path
-              ut.redirect_path = it.redirect_path
-              ut.wdav_path = it.wdav_path
-              ut.mime_type = it.mime_type
-              ut.sub_mime_type = it.sub_mime_type
-              ut.orig_mime_type = it.orig_mime_type
-              ut.progress = 100
-            }
-            vm.syncServerInfo()
-          })
-          .catch((error) => {
-            console.log(error)
-            const j = vm.findFileIndexById(item_id)
-            if (j != -1) {
-              vm.uploads.splice(j, 1)
-            }
-          })
+          sent = end
+        }
+      } catch (err) {
+        api.delete('/files/chunked/' + upload_id).catch(() => {})
+        throw err
       }
+
+      const url = replaceFid
+        ? '/files/chunked/' + upload_id + '/replace/' + replaceFid
+        : '/files/chunked/' + upload_id + '/complete'
+      const done = await api.post(url)
+      return done.data.data
     },
     handleSubFile($event) {
       const files = []
@@ -712,27 +765,44 @@ export default {
       const file = $event.target.files && $event.target.files[0]
       if (!file) return
       const id = this.file_edit.id
+      const vm = this
+      vm.file_edit.replace_status = 'uploading…'
+
+      const onProgress = (loaded, total) => {
+        if (total) {
+          const pct = Math.floor((loaded / total) * 100)
+          vm.file_edit.replace_status = 'uploading… ' + pct + '%'
+        }
+      }
+      const apply = (f) => {
+        vm.file_edit.replace_status = 'replaced (' + vm.$prettyBytes(f.fsize) + ')'
+        const i = vm.findFileIndexById(id)
+        if (i != -1) {
+          vm.uploads[i].fsize = f.fsize
+          vm.uploads[i].mime_type = f.mime_type
+          vm.uploads[i].download_count = 0
+          vm.file_edit.download_count = 0
+        }
+        vm.syncServerInfo()
+      }
+      const fail = (err) => {
+        console.log(err)
+        vm.file_edit.replace_status = 'replace failed'
+      }
+
+      if (file.size > vm.CHUNKED_THRESHOLD) {
+        vm.uploadChunked(file, onProgress, id).then(apply).catch(fail)
+        return
+      }
       const fd = new FormData()
       fd.append('file', file)
-      this.file_edit.replace_status = 'uploading…'
       api
-        .post('/files/' + id + '/replace', fd, { headers: { 'content-type': 'multipart/form-data' } })
-        .then((response) => {
-          const f = response.data.data
-          this.file_edit.replace_status = 'replaced (' + this.$prettyBytes(f.fsize) + ')'
-          const i = this.findFileIndexById(id)
-          if (i != -1) {
-            this.uploads[i].fsize = f.fsize
-            this.uploads[i].mime_type = f.mime_type
-            this.uploads[i].download_count = 0
-            this.file_edit.download_count = 0
-          }
-          this.syncServerInfo()
+        .post('/files/' + id + '/replace', fd, {
+          headers: { 'content-type': 'multipart/form-data' },
+          onUploadProgress(pe) { onProgress(pe.loaded, pe.total) },
         })
-        .catch((error) => {
-          console.log(error)
-          this.file_edit.replace_status = 'replace failed'
-        })
+        .then((response) => apply(response.data.data))
+        .catch(fail)
     },
     toggleSelect(id) {
       const i = this.selected.indexOf(id)

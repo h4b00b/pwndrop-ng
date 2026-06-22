@@ -352,6 +352,17 @@ func (s *Server) setupRouter() {
 	sr.HandleFunc("/files", api.FileListHandler).Methods("GET")
 	sr.HandleFunc("/files", api.FileCreateHandler).Methods("POST")
 	sr.HandleFunc("/files/paste", api.FilePasteHandler).Methods("POST")
+	// Chunked upload routes must be registered before /files/{id} so the
+	// literal "chunked" segment isn't swallowed by the {id} matcher. More-
+	// specific paths first: /init, /{id}/complete, /{id}/replace/{fid}, then
+	// the catch-alls /{id} POST/DELETE for chunk append + abort.
+	sr.HandleFunc("/files/chunked/init", api.ChunkedOptionsHandler).Methods("OPTIONS")
+	sr.HandleFunc("/files/chunked/init", api.ChunkedInitHandler).Methods("POST")
+	sr.HandleFunc("/files/chunked/{id}/complete", api.ChunkedCompleteHandler).Methods("POST")
+	sr.HandleFunc("/files/chunked/{id}/replace/{fid}", api.ChunkedReplaceCompleteHandler).Methods("POST")
+	sr.HandleFunc("/files/chunked/{id}", api.ChunkedOptionsHandler).Methods("OPTIONS")
+	sr.HandleFunc("/files/chunked/{id}", api.ChunkedAppendHandler).Methods("POST")
+	sr.HandleFunc("/files/chunked/{id}", api.ChunkedAbortHandler).Methods("DELETE")
 	sr.HandleFunc("/files/{id}", api.FileDeleteHandler).Methods("DELETE")
 	sr.HandleFunc("/files/{id}", api.FileUpdateHandler).Methods("PUT")
 	sr.HandleFunc("/files/{id}/sub", api.SubFileCreateHandler).Methods("POST")

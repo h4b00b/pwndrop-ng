@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/kgretzky/pwndrop/api"
 	"github.com/kgretzky/pwndrop/log"
 	"github.com/kgretzky/pwndrop/storage"
 )
@@ -33,6 +34,13 @@ func RunCleanupNow() {
 }
 
 func runCleanupTick() {
+	// Stale chunked-upload sweep runs unconditionally — the operator-facing
+	// CleanupEnabled toggle gates user-data expiry (a different concern),
+	// not internal temp-blob hygiene.
+	if n := api.ChunkedSweepStale(api.ChunkedDefaultTTL()); n > 0 {
+		log.Info("cleanup: swept %d stale chunked uploads", n)
+	}
+
 	cfg, err := storage.ConfigGet(1)
 	if err != nil || !cfg.CleanupEnabled {
 		return
