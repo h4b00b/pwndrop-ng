@@ -1,3 +1,7 @@
+****v2.0.5****
+- [x] Chunked upload protocol (`/api/v1/files/chunked/{init,append,complete,replace,abort}`) so files >100 MB can be uploaded through a Cloudflare free-plan proxied deployment without disabling the proxy. Frontend in `FileView.vue` switches to the chunked path for files over 80 MiB; smaller uploads keep the existing multipart flow. Strict append-only (`X-Chunk-Offset` must equal server-tracked `Received`), 95 MiB hard cap per chunk, 50 GiB total cap, in-memory upload registry with per-id mutex, stale uploads swept after 24h of inactivity by the cleanup loop. Replace flow `/files/chunked/{id}/replace/{fid}` mirrors `FileReplaceHandler`: swaps blob, resets `DownloadCount`, keeps URL/policy/password/filters.
+- [x] Version constant bumped to `2.0.5`; frontend `package.json` synced.
+
 ****v2.0.4****
 - [x] Admin page footer now also credits the NG fork (`made by @mrgretzky · NG fork by @h4b00b`) in `frontend/src/App.vue`; original upstream credit preserved. Frontend bundle rebuilt by CI.
 - [x] Version constant bumped to `2.0.4`; frontend `package.json` synced.
