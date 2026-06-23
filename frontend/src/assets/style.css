@@ -61,6 +61,11 @@ hr {
 	right: 15px;
 }
 
+.top-left-bar.with-banner,
+.top-right-bar.with-banner {
+	top: 56px;
+}
+
 .btn-circle {
 	width: 40px;
 	height: 40px;

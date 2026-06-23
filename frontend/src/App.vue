@@ -1,6 +1,6 @@
 <template>
   <div id="app">
-    <div v-if="!isDead && session.isLoggedIn" class="top-left-bar">
+    <div v-if="!isDead && session.isLoggedIn" class="top-left-bar" :class="{ 'with-banner': banner.shown }">
       <button class="btn btn-primary btn-circle" style="margin-right: 8px" @click="showConfig()" v-tooltip:bottom="'Settings'">
         <i class="fas fa-cog"></i>
       </button>
@@ -22,7 +22,7 @@
         <i class="fas fa-power-off"></i>
       </button>
     </div>
-    <div v-if="!isDead" class="top-right-bar">
+    <div v-if="!isDead" class="top-right-bar" :class="{ 'with-banner': banner.shown }">
       <button class="btn btn-primary btn-circle" @click="logout()">
         <i class="fas fa-sign-out-alt"></i>
       </button>
@@ -279,6 +279,11 @@ export default {
   computed: {
     isConfigComplete() {
       return !!(this.config.secret_path && this.config.cookie_name && this.config.cookie_token)
+    },
+    banner() {
+      // Whether any top-of-page banner is visible — top bars need to shift
+      // down to clear it.
+      return { shown: this.killOn || (session.isLoggedIn && this.update.available) }
     },
   },
   methods: {

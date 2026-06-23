@@ -239,50 +239,63 @@ func downloadTo(ctx context.Context, url, dest string) (string, error) {
 	tr := tar.NewReader(gz)
 	wantName := filepath.Base(dest)
 
-	tmp, err := os.CreateTemp(filepath.Dir(dest), ".pwndrop-update-*")
-	if err != nil {
-		return "", fmt.Errorf("temp file: %w", err)
+	// Two-pass: first try basename equal to the running binary's name;
+	// failing that, accept the only regular file in the archive. The
+	// fallback covers local builds where the binary is named
+	// "pwndrop-ng-linux-amd64" but the release tar carries "pwndrop-ng",
+	// and any future repackaging that keeps "one binary per tarball".
+	type candidate struct {
+		name string
+		data []byte
 	}
-	tmpPath := tmp.Name()
-	// On any error past this point, remove the temp file.
-	cleanup := func() { _ = tmp.Close(); _ = os.Remove(tmpPath) }
+	var exact *candidate
+	var regulars []candidate
 
-	var written int64
-	var matched bool
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			cleanup()
 			return "", fmt.Errorf("tar: %w", err)
 		}
 		if hdr.Typeflag != tar.TypeReg && hdr.Typeflag != tar.TypeRegA {
 			continue
 		}
-		// Match by basename so we tolerate both "pwndrop-ng" at the
-		// archive root and the current "pwndrop-ng/pwndrop-ng" layout.
-		if path.Base(hdr.Name) != wantName {
-			// First-pass strict match. Loose fallback handled after the
-			// loop if nothing matched.
-			continue
-		}
-		if _, err := io.Copy(tmp, tr); err != nil {
-			cleanup()
+		buf, err := io.ReadAll(io.LimitReader(tr, maxDownloadBytes))
+		if err != nil {
 			return "", fmt.Errorf("extract: %w", err)
 		}
-		written = hdr.Size
-		matched = true
-		break
+		c := candidate{name: hdr.Name, data: buf}
+		if path.Base(hdr.Name) == wantName {
+			exact = &c
+			break
+		}
+		regulars = append(regulars, c)
 	}
-	if !matched {
-		cleanup()
-		return "", fmt.Errorf("binary %q not found in archive", wantName)
+
+	var picked *candidate
+	switch {
+	case exact != nil:
+		picked = exact
+	case len(regulars) == 1:
+		picked = &regulars[0]
+	default:
+		return "", fmt.Errorf("binary %q not found in archive (%d candidates)", wantName, len(regulars))
 	}
-	if written == 0 {
-		cleanup()
+	if len(picked.data) == 0 {
 		return "", errors.New("extracted binary is empty")
+	}
+
+	tmp, err := os.CreateTemp(filepath.Dir(dest), ".pwndrop-update-*")
+	if err != nil {
+		return "", fmt.Errorf("temp file: %w", err)
+	}
+	tmpPath := tmp.Name()
+	cleanup := func() { _ = tmp.Close(); _ = os.Remove(tmpPath) }
+	if _, err := tmp.Write(picked.data); err != nil {
+		cleanup()
+		return "", fmt.Errorf("write: %w", err)
 	}
 	if err := tmp.Close(); err != nil {
 		_ = os.Remove(tmpPath)
