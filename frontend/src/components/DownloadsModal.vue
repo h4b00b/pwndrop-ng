@@ -25,6 +25,7 @@
             <th>IP</th>
             <th>User-Agent</th>
             <th>Status</th>
+            <th>Watermark</th>
           </tr>
         </thead>
         <tbody>
@@ -35,6 +36,7 @@
             <td class="dl-ip"><code>{{ d.remote_ip }}</code></td>
             <td class="dl-ua" :title="d.user_agent">{{ d.user_agent }}</td>
             <td><span class="dl-badge" :class="'dl-badge-' + d.status">{{ d.status }}</span></td>
+            <td class="dl-wm"><code v-if="d.watermark" :title="d.watermark">{{ d.watermark.slice(0, 8) }}…</code></td>
           </tr>
         </tbody>
       </table>
@@ -192,5 +194,9 @@ export default {
 .dl-badge-paused-facade {
   background: rgba(108, 117, 125, 0.25);
   color: #adb5bd;
+}
+.dl-wm code {
+  font-size: 10px;
+  color: #c89bff;
 }
 </style>

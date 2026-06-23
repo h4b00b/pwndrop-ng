@@ -41,6 +41,40 @@ type DbFile struct {
 	// record + blob (handled in core/http.go via core.BurnFile). The paste
 	// modal sets this; it's also surfaced in the file edit modal for uploads.
 	BurnAfterRead bool `json:"burn_after_read"`
+
+	// SHA256: hex-encoded sha256 of the stored blob. Computed at upload /
+	// paste / replace / chunked-complete time. Exposed to operators (UI + API
+	// response) and to downloaders via the X-Content-SHA256 header and the
+	// RFC-3230 Digest header on the serve path, so a target can verify the
+	// payload they fetched matches what the operator uploaded.
+	SHA256 string `json:"sha256"`
+
+	// Note: free-text operator memo for this file (campaign tag, target,
+	// reminder of what payload this is). Surfaced in the edit modal only —
+	// never sent on the download response or to any third-party sink.
+	Note string `json:"note"`
+
+	// Watermark: when true, every served body has a unique tag appended in
+	// the form "\x00PWN:<32hex>\n". The tag goes into the download log so a
+	// leaked sample (grep "PWN:") maps back to IP/UA/timestamp. Side-effects:
+	// each download has a different content hash, so the Digest header is
+	// suppressed and X-Content-Watermarked:true is sent instead. Range/resume
+	// is auto-disabled (modified bytes break partial fetches). Tolerated by
+	// PE/ELF (overlay/trailer) and most ZIP-based formats; documented as
+	// unsafe for strict-parser formats (PDF, ISO9660).
+	Watermark bool `json:"watermark"`
+
+	// WrapAs requests on-the-fly container repackaging at serve time. Values:
+	//   "" / "none": serve raw blob (default).
+	//   "zip":       wrap in a single-entry ZIP (no compression) — bypasses
+	//                mail filters that block bare .exe; the in-zip filename is
+	//                preserved so the target sees the original payload name.
+	// Reserved for future iteration: "iso" (MotW bypass on Windows — needs a
+	// minimal ISO9660 writer; staged for 9f).
+	// Side-effects: Content-Type switches to the wrap mime, X-Content-Wrapped
+	// is emitted, Digest is suppressed (wrapped bytes differ from stored blob),
+	// Range/resume is auto-disabled.
+	WrapAs string `json:"wrap_as"`
 }
 
 func FileCreate(o *DbFile) (*DbFile, error) {
@@ -156,7 +190,7 @@ func FileSetSubFile(id int, refSubFile int, subName string) error {
 
 // FileUpdatePolicy sets the per-file expiry/quota fields. Counter is not
 // touched here — it's owned by the download flow via FileIncrementDownloads.
-func FileUpdatePolicy(id int, expireAt int64, maxDownloads int, notifyMuted, burnAfterRead bool) error {
+func FileUpdatePolicy(id int, expireAt int64, maxDownloads int, notifyMuted, burnAfterRead, watermark bool, note, wrapAs string) error {
 	if err := db.UpdateField(&DbFile{ID: id}, "ExpireAt", expireAt); err != nil {
 		return err
 	}
@@ -167,6 +201,15 @@ func FileUpdatePolicy(id int, expireAt int64, maxDownloads int, notifyMuted, bur
 		return err
 	}
 	if err := db.UpdateField(&DbFile{ID: id}, "BurnAfterRead", burnAfterRead); err != nil {
+		return err
+	}
+	if err := db.UpdateField(&DbFile{ID: id}, "Watermark", watermark); err != nil {
+		return err
+	}
+	if err := db.UpdateField(&DbFile{ID: id}, "Note", note); err != nil {
+		return err
+	}
+	if err := db.UpdateField(&DbFile{ID: id}, "WrapAs", wrapAs); err != nil {
 		return err
 	}
 	return nil
@@ -190,6 +233,14 @@ func FileGetPasswordHash(id int) string {
 		return ""
 	}
 	return o.Hash
+}
+
+// FileSetHash stores the hex sha256 for the file's stored blob. Called from
+// the upload / paste / replace / chunked-complete paths after the blob has
+// been written to disk. Empty string is allowed (legacy rows pre-feature have
+// no hash yet).
+func FileSetHash(id int, hex string) error {
+	return db.UpdateField(&DbFile{ID: id}, "SHA256", hex)
 }
 
 // FileResetDownloadCount sets DownloadCount back to 0 — used by the replace

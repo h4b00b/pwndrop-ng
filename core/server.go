@@ -2,6 +2,8 @@ package core
 
 import (
 	"crypto/tls"
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"io/fs"
 	"net"
@@ -261,6 +263,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if f != nil && isGet {
 			dcw = &davCountWriter{ResponseWriter: w}
 			cw = dcw
+			// Advertise the blob hash on GETs too so DAV clients can verify
+			// what they fetched. Header is set before delegating so it lands
+			// in the response before the dav handler writes the status line.
+			if f.SHA256 != "" {
+				if raw, err := hex.DecodeString(f.SHA256); err == nil && len(raw) == 32 {
+					w.Header().Set("X-Content-SHA256", f.SHA256)
+					w.Header().Set("Digest", "sha-256="+base64.StdEncoding.EncodeToString(raw))
+				}
+			}
 		}
 		s.wdav.Handler().ServeHTTP(cw, r)
 		if f != nil && isGet {

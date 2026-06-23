@@ -130,7 +130,7 @@ func FilterDeleteHandler(w http.ResponseWriter, r *http.Request) {
 
 func validFilter(o *storage.DbFilter) bool {
 	switch o.MatchType {
-	case "ip", "cidr", "country", "ua_regex":
+	case "ip", "cidr", "country", "asn", "ua_regex":
 	default:
 		return false
 	}

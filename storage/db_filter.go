@@ -12,6 +12,11 @@ import "github.com/asdine/storm/q"
 //   - "cidr":       Pattern is a CIDR block (e.g. "10.0.0.0/8").
 //   - "country":    Pattern is a 2-letter ISO country code (e.g. "IT", "RU").
 //                   Resolved via the GeoIP cache in core/filter.go.
+//   - "asn":        Pattern is an autonomous system number (e.g. "14618" or
+//                   "AS14618"). Useful to nuke whole cloud providers in one
+//                   rule: AS14618=AWS, AS8075=Azure, AS396982=GCP, AS16509=AWS,
+//                   AS14061=DigitalOcean, AS63949=Linode. Resolved via the
+//                   same GeoIP cache.
 //   - "ua_regex":   Pattern is a Go regexp applied to the User-Agent header.
 //
 // Action:

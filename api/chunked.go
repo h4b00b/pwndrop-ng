@@ -269,6 +269,14 @@ func ChunkedCompleteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Hash the assembled blob once at complete-time instead of streaming the
+	// hash across appends. Avoids the bookkeeping needed to keep the hasher
+	// state aligned with on-disk bytes when an in-flight chunk overruns the
+	// declared size (we truncate disk, but a streamed hasher already absorbed
+	// the extra byte). Cost: one extra read pass over the file, fast next to
+	// the upload itself.
+	sha, _ := utils.HashFile(finalPath)
+
 	o := &storage.DbFile{
 		Uid:          1,
 		Name:         u.Name,
@@ -283,6 +291,7 @@ func ChunkedCompleteHandler(w http.ResponseWriter, r *http.Request) {
 		IsEnabled:    true,
 		IsPaused:     false,
 		RefSubFile:   0,
+		SHA256:       sha,
 	}
 	f, err := storage.FileCreate(o)
 	if err != nil {
@@ -365,6 +374,9 @@ func ChunkedReplaceCompleteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = storage.FileResetDownloadCount(fid)
+	if sha, err := utils.HashFile(newBlob); err == nil {
+		_ = storage.FileSetHash(fid, sha)
+	}
 	_ = os.Remove(oldBlob)
 
 	chunkedRegMu.Lock()

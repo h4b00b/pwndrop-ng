@@ -40,6 +40,7 @@
           <option value="ip">ip</option>
           <option value="cidr">cidr</option>
           <option value="country">country (ISO2)</option>
+          <option value="asn">asn</option>
           <option value="ua_regex">ua_regex</option>
         </select>
         <input type="text" class="form-control" :placeholder="patternPlaceholder" v-model="draft.pattern">
@@ -79,6 +80,7 @@ export default {
         case 'ip': return '1.2.3.4'
         case 'cidr': return '10.0.0.0/8'
         case 'country': return 'RU'
+        case 'asn': return 'AS14618 (AWS) / AS8075 (Azure) / AS396982 (GCP)'
         case 'ua_regex': return '(?i)bot|crawler|sandbox'
         default: return ''
       }

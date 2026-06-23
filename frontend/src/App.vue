@@ -151,6 +151,34 @@
         </div>
 
         <hr>
+        <h6 class="section-title">Hardening</h6>
+
+        <div class="form-group row">
+          <label for="rl-enabled" class="col-sm-3 col-form-label label-help">Rate limit per IP:
+            <i class="fas fa-question-circle label-qmark" v-tooltip:bottom="'In-process token bucket. When a single client IP exceeds the budget, the request is 404d and logged as &quot;rate-limit&quot; — keeps a scanner storm out of the DB.'"></i>
+          </label>
+          <div class="col-sm-9 d-flex align-items-center">
+            <input type="checkbox" id="rl-enabled" v-model="config.rate_limit_enabled">
+          </div>
+        </div>
+        <div class="form-group row">
+          <label for="rl-per-min" class="col-sm-3 col-form-label label-help">Requests / minute:
+            <i class="fas fa-question-circle label-qmark" v-tooltip:bottom="'Per-IP cap. 0 (or empty) = use default (60).'"></i>
+          </label>
+          <div class="col-sm-9">
+            <input type="number" min="0" class="form-control" id="rl-per-min" v-model.number="config.rate_limit_per_minute">
+          </div>
+        </div>
+        <div class="form-group row">
+          <label for="range-enabled" class="col-sm-3 col-form-label label-help">Range / resume:
+            <i class="fas fa-question-circle label-qmark" v-tooltip:bottom="'Honor HTTP Range requests (RFC 7233). Auto-disabled per file when MaxDownloads or burn-after-read are set — those need single-shot delivery semantics.'"></i>
+          </label>
+          <div class="col-sm-9 d-flex align-items-center">
+            <input type="checkbox" id="range-enabled" v-model="config.range_enabled">
+          </div>
+        </div>
+
+        <hr>
         <h6 class="section-title">Auto-cleanup</h6>
 
         <div class="form-group row">

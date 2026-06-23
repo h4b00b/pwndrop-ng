@@ -58,6 +58,22 @@
           </div>
         </div>
 
+        <div class="form-group row" v-if="file_edit.sha256">
+          <label class="col-sm-3 col-form-label label-help">SHA-256:
+            <i class="fas fa-question-circle label-qmark" v-tooltip:bottom="'Hex sha256 of the stored blob. Sent to downloaders via X-Content-SHA256 and Digest: sha-256= headers. Use it to verify integrity on the target.'"></i>
+          </label>
+          <div class="col-sm-9">
+            <div class="input-group">
+              <input type="text" class="form-control sha-input" :value="file_edit.sha256" readonly spellcheck="false">
+              <div class="input-group-append">
+                <button class="btn btn-secondary" type="button" @click="copySha(file_edit.sha256)" v-tooltip:left="'Copy to clipboard'">
+                  <i class="fas fa-copy"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <hr>
         <h6 class="policy-title">Delivery controls</h6>
         <div class="form-group row">
@@ -118,6 +134,33 @@
           </label>
           <div class="col-sm-9 d-flex align-items-center">
             <input type="checkbox" id="edit-burn" v-model="file_edit.burn_after_read">
+          </div>
+        </div>
+        <div class="form-group row">
+          <label for="edit-wrap" class="col-sm-3 col-form-label label-help">Auto-wrap:
+            <i class="fas fa-question-circle label-qmark" v-tooltip:bottom="'Repackage the blob at download time. zip = single-entry .zip (no compression) — bypasses mail filters that block .exe. iso planned for next iteration.'"></i>
+          </label>
+          <div class="col-sm-9">
+            <select class="form-control" id="edit-wrap" v-model="file_edit.wrap_as">
+              <option value="">none</option>
+              <option value="zip">zip</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group row">
+          <label for="edit-watermark" class="col-sm-3 col-form-label label-help">Watermark per download:
+            <i class="fas fa-question-circle label-qmark" v-tooltip:bottom="'Append a unique tag (\\x00PWN:<32hex>\\n) to each served body, logged with IP/UA so a leaked sample can be traced. Disables Digest header and Range/resume. Safe for PE/ELF/ZIP; may break strict-parser formats (PDF, ISO).'"></i>
+          </label>
+          <div class="col-sm-9 d-flex align-items-center">
+            <input type="checkbox" id="edit-watermark" v-model="file_edit.watermark">
+          </div>
+        </div>
+        <div class="form-group row">
+          <label for="edit-note" class="col-sm-3 col-form-label label-help">Operator note:
+            <i class="fas fa-question-circle label-qmark" v-tooltip:bottom="'Free-text memo for your eyes only — campaign tag, target, reminder. Not sent on the download response and not exposed in any notification.'"></i>
+          </label>
+          <div class="col-sm-9">
+            <textarea class="form-control" id="edit-note" rows="2" v-model="file_edit.note" placeholder="(empty)"></textarea>
           </div>
         </div>
         <div class="form-group row">
@@ -398,6 +441,10 @@ export default {
         clear_password: false,
         notify_muted: false,
         burn_after_read: false,
+        watermark: false,
+        wrap_as: '',
+        sha256: '',
+        note: '',
         replace_status: '',
       },
       selected: [],
@@ -659,6 +706,10 @@ export default {
       this.file_edit.clear_password = false
       this.file_edit.notify_muted = !!this.uploads[i].notify_muted
       this.file_edit.burn_after_read = !!this.uploads[i].burn_after_read
+      this.file_edit.watermark = !!this.uploads[i].watermark
+      this.file_edit.wrap_as = this.uploads[i].wrap_as || ''
+      this.file_edit.sha256 = this.uploads[i].sha256 || ''
+      this.file_edit.note = this.uploads[i].note || ''
       this.file_edit.replace_status = ''
       this.file_edit.sub_name = '<unknown>'
       this.file_edit.sub_size = 0
@@ -695,6 +746,9 @@ export default {
             clear_password: this.file_edit.clear_password,
             notify_muted: this.file_edit.notify_muted,
             burn_after_read: this.file_edit.burn_after_read,
+            watermark: this.file_edit.watermark,
+            wrap_as: this.file_edit.wrap_as,
+            note: this.file_edit.note,
           },
           { headers: { 'content-type': 'application/json' } }
         )
@@ -715,6 +769,10 @@ export default {
             vm.uploads[i].has_password = !!f.has_password
             vm.uploads[i].notify_muted = !!f.notify_muted
             vm.uploads[i].burn_after_read = !!f.burn_after_read
+            vm.uploads[i].watermark = !!f.watermark
+            if (typeof f.wrap_as === 'string') vm.uploads[i].wrap_as = f.wrap_as
+            if (typeof f.sha256 === 'string') vm.uploads[i].sha256 = f.sha256
+            if (typeof f.note === 'string') vm.uploads[i].note = f.note
           }
         })
         .catch((error) => console.log(error))
@@ -782,6 +840,10 @@ export default {
           vm.uploads[i].mime_type = f.mime_type
           vm.uploads[i].download_count = 0
           vm.file_edit.download_count = 0
+          if (typeof f.sha256 === 'string') {
+            vm.uploads[i].sha256 = f.sha256
+            vm.file_edit.sha256 = f.sha256
+          }
         }
         vm.syncServerInfo()
       }
@@ -803,6 +865,12 @@ export default {
         })
         .then((response) => apply(response.data.data))
         .catch(fail)
+    },
+    copySha(s) {
+      if (!s) return
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(s).catch((e) => console.log(e))
+      }
     },
     toggleSelect(id) {
       const i = this.selected.indexOf(id)
@@ -1006,6 +1074,10 @@ export default {
   margin-left: 10px;
   font-size: 12px;
   color: var(--pwn-slite);
+}
+.sha-input {
+  font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-size: 12px;
 }
 .bulk-bar {
   position: fixed;

@@ -52,6 +52,21 @@ type DbConfig struct {
 	// a paid/self-hosted provider for OPSEC (the default still leaks visitor
 	// IPs to a third party — just over TLS).
 	GeoIpEndpoint string `json:"geoip_endpoint"`
+
+	// Rate limit: best-effort soft cap on serve requests per source IP. When
+	// enabled and a single IP is over the budget, the request is denied with
+	// 429 and logged as "rate-limit" before file lookup runs (so a scanner
+	// storm doesn't hammer the DB). RateLimitPerMinute<=0 with the switch on
+	// is treated as the default 60.
+	RateLimitEnabled   bool `json:"rate_limit_enabled"`
+	RateLimitPerMinute int  `json:"rate_limit_per_minute"`
+
+	// RangeEnabled toggles RFC-7233 Range / resume support on the HTTP serve
+	// path. Off by default — Range is incompatible with MaxDownloads (each
+	// partial would burn a slot) and burn-after-read (single-shot semantics),
+	// so it is auto-disabled per file when those policies are on, regardless
+	// of this switch.
+	RangeEnabled bool `json:"range_enabled"`
 }
 
 func ConfigCreate(o *DbConfig) (*DbConfig, error) {

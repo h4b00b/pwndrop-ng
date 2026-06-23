@@ -101,7 +101,11 @@ func matchRule(rule storage.DbFilter, fromIp, ua string) bool {
 		return ip != nil && n.Contains(ip)
 	case "country":
 		want := strings.ToUpper(strings.TrimSpace(rule.Pattern))
-		got := geoLookup(fromIp)
+		got := geoLookup(fromIp).country
+		return want != "" && got != "" && want == got
+	case "asn":
+		want := normalizeASN(rule.Pattern)
+		got := geoLookup(fromIp).asn
 		return want != "" && got != "" && want == got
 	case "ua_regex":
 		re, err := regexp.Compile(rule.Pattern)
@@ -139,7 +143,27 @@ const (
 
 type geoEntry struct {
 	country string
+	asn     string // bare digits, no "AS" prefix, "" when unknown
 	expires time.Time
+}
+
+// normalizeASN turns "AS14618", " as14618 ", "14618" into "14618". Empty
+// string when input is not a recognisable ASN. Used both to canonicalise
+// rule patterns and to compare against the cached ASN.
+func normalizeASN(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	if len(s) >= 2 && (s[0] == 'A' || s[0] == 'a') && (s[1] == 'S' || s[1] == 's') {
+		s = s[2:]
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return ""
+		}
+	}
+	return s
 }
 
 var (
@@ -155,33 +179,35 @@ func geoEndpoint() string {
 	return geoDefaultURL
 }
 
-func geoLookup(ip string) string {
+func geoLookup(ip string) geoEntry {
 	if ip == "" {
-		return ""
+		return geoEntry{}
 	}
 	// Private/loopback never resolves remotely — return empty so a "country"
-	// rule does not match and the next rule (or default) takes over.
+	// or "asn" rule does not match and the next rule (or default) takes over.
 	if isPrivateIP(ip) {
-		return ""
+		return geoEntry{}
 	}
 
 	geoMu.RLock()
 	if e, ok := geoCache[ip]; ok && time.Now().Before(e.expires) {
 		geoMu.RUnlock()
-		return e.country
+		return e
 	}
 	geoMu.RUnlock()
 
-	cc, err := fetchCountry(ip)
+	cc, asn, err := fetchGeo(ip)
 	geoMu.Lock()
 	geoEvictIfFullLocked()
+	exp := time.Now().Add(geoCacheTTLOk)
 	if err != nil {
-		geoCache[ip] = geoEntry{country: "", expires: time.Now().Add(geoCacheTTLBad)}
-	} else {
-		geoCache[ip] = geoEntry{country: cc, expires: time.Now().Add(geoCacheTTLOk)}
+		exp = time.Now().Add(geoCacheTTLBad)
+		cc, asn = "", ""
 	}
+	entry := geoEntry{country: cc, asn: asn, expires: exp}
+	geoCache[ip] = entry
 	geoMu.Unlock()
-	return cc
+	return entry
 }
 
 // geoEvictIfFullLocked keeps geoCache bounded. Caller must hold geoMu (write).
@@ -211,30 +237,64 @@ func geoEvictIfFullLocked() {
 	}
 }
 
-func fetchCountry(ip string) (string, error) {
+func fetchGeo(ip string) (string, string, error) {
 	resp, err := geoClient.Get(fmt.Sprintf(geoEndpoint(), ip))
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("status %d", resp.StatusCode)
+		return "", "", fmt.Errorf("status %d", resp.StatusCode)
 	}
-	// Accept both snake_case (ipwho.is, ipapi.co, ipwhois.app) and camelCase
-	// (legacy ip-api.com) so swapping providers via config doesn't need a
-	// code change.
+	// Decode into a union of shapes so the same code handles ipwho.is,
+	// ipapi.co, ipwhois.app (snake_case + nested connection.asn) and legacy
+	// ip-api.com (camelCase + bare "as" string like "AS14618 Amazon"). All
+	// asn extraction paths funnel through normalizeASN so the cache stores
+	// bare digits.
 	var body struct {
-		CountryCode      string `json:"country_code"`
-		CountryCodeCamel string `json:"countryCode"`
+		CountryCode      string      `json:"country_code"`
+		CountryCodeCamel string      `json:"countryCode"`
+		Asn              interface{} `json:"asn"`
+		AsField          string      `json:"as"`
+		Connection       struct {
+			Asn interface{} `json:"asn"`
+		} `json:"connection"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return "", err
+		return "", "", err
 	}
 	cc := body.CountryCode
 	if cc == "" {
 		cc = body.CountryCodeCamel
 	}
-	return strings.ToUpper(cc), nil
+	asn := extractASN(body.Connection.Asn)
+	if asn == "" {
+		asn = extractASN(body.Asn)
+	}
+	if asn == "" && body.AsField != "" {
+		// "AS14618 Amazon-AES" — keep only the leading token.
+		first := strings.Fields(body.AsField)
+		if len(first) > 0 {
+			asn = normalizeASN(first[0])
+		}
+	}
+	return strings.ToUpper(cc), asn, nil
+}
+
+// extractASN copes with providers that return ASN as either a number or a
+// string. Numbers come through json.Decode as float64; strings may be raw
+// digits or prefixed with "AS".
+func extractASN(v interface{}) string {
+	switch t := v.(type) {
+	case float64:
+		if t <= 0 {
+			return ""
+		}
+		return fmt.Sprintf("%d", int64(t))
+	case string:
+		return normalizeASN(t)
+	}
+	return ""
 }
 
 func isPrivateIP(s string) bool {

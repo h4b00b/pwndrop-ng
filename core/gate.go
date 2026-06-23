@@ -35,6 +35,19 @@ const (
 // Used by both the HTTP serve path and the WebDAV serve path so that scanners
 // cannot bypass kill switch / filters / password by spoofing the WebDAV UA.
 func (s *Server) runGate(w http.ResponseWriter, r *http.Request, fromIp string, cfg *storage.DbConfig, countHits bool) (*storage.DbFile, gateAction) {
+	// Rate limit first — soaks up scanner bursts before we touch the DB. We
+	// intentionally don't differentiate the 429 response from the soft 404
+	// we use elsewhere: a scanner sees a small body and a stable shape, not
+	// a fingerprint of pwndrop's gate stack.
+	if cfg != nil && cfg.RateLimitEnabled && fromIp != "" {
+		if !RateLimitTake(fromIp, cfg.RateLimitPerMinute) {
+			logBlock(nil, r, fromIp, "rate-limit", false)
+			w.Header().Set("Retry-After", "30")
+			softNotFound(w)
+			return nil, gateBlocked
+		}
+	}
+
 	if cfg != nil && cfg.KillSwitch {
 		logBlock(nil, r, fromIp, "kill-switch", false)
 		s.killConnection(w, 404)
@@ -103,12 +116,20 @@ func (s *Server) runGate(w http.ResponseWriter, r *http.Request, fromIp string, 
 // case. f may be nil (kill switch hits before file lookup); the other call
 // sites always have a file at hand.
 func logBlock(f *storage.DbFile, r *http.Request, fromIp, status string, muted bool) {
+	logBlockWatermark(f, r, fromIp, status, "", muted)
+}
+
+// logBlockWatermark is the watermark-aware variant. Used by the HTTP serve
+// path for watermarked downloads so the per-download tag is recorded
+// alongside IP/UA/timestamp.
+func logBlockWatermark(f *storage.DbFile, r *http.Request, fromIp, status, watermark string, muted bool) {
 	ev := &storage.DbDownloadLog{
 		UrlPath:   r.URL.Path,
 		RemoteIp:  fromIp,
 		UserAgent: r.Header.Get("User-Agent"),
 		Referer:   r.Header.Get("Referer"),
 		Status:    status,
+		Watermark: watermark,
 	}
 	if f != nil {
 		ev.FileId = f.ID

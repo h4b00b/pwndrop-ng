@@ -4,15 +4,21 @@ package storage
 // Status values: "ok" (file served), "redirect" (handed off to RedirectPath),
 // "paused-facade" (served the facade content).
 type DbDownloadLog struct {
-	ID         int    `json:"id" storm:"id,increment"`
-	FileId     int    `json:"file_id" storm:"index"`
-	FileName   string `json:"file_name"`
-	UrlPath    string `json:"url_path"`
-	RemoteIp   string `json:"remote_ip" storm:"index"`
-	UserAgent  string `json:"user_agent"`
-	Referer    string `json:"referer"`
-	Status     string `json:"status"`
-	Timestamp  int64  `json:"timestamp" storm:"index"`
+	ID        int    `json:"id" storm:"id,increment"`
+	FileId    int    `json:"file_id" storm:"index"`
+	FileName  string `json:"file_name"`
+	UrlPath   string `json:"url_path"`
+	RemoteIp  string `json:"remote_ip" storm:"index"`
+	UserAgent string `json:"user_agent"`
+	Referer   string `json:"referer"`
+	Status    string `json:"status"`
+	Timestamp int64  `json:"timestamp" storm:"index"`
+
+	// Watermark: the per-download tag that was appended to the served bytes
+	// when DbFile.Watermark is on. Empty for non-watermarked files. The
+	// operator uses this to map a leaked sample (grep "PWN:<tag>") back to
+	// the IP/UA/timestamp row.
+	Watermark string `json:"watermark"`
 }
 
 func DownloadLogCreate(o *DbDownloadLog) (*DbDownloadLog, error) {

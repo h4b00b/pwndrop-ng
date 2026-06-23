@@ -1,6 +1,8 @@
 package api
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -99,6 +101,11 @@ func FileCreateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Compute the blob hash before record creation so operators always see a
+	// non-empty SHA256 on freshly uploaded files. Hash failure is non-fatal —
+	// we'd rather the file appear with empty hash than reject the upload.
+	sha, _ := utils.HashFile(save_path)
+
 	o := &storage.DbFile{
 		Uid:          user_id,
 		Name:         name,
@@ -113,6 +120,7 @@ func FileCreateHandler(w http.ResponseWriter, r *http.Request) {
 		IsEnabled:    true,
 		IsPaused:     false,
 		RefSubFile:   0,
+		SHA256:       sha,
 	}
 
 	f, err := storage.FileCreate(o)
@@ -173,6 +181,11 @@ func FilePasteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Paste content is fully in memory — hash the source bytes directly rather
+	// than the on-disk blob to avoid a needless re-read.
+	sum := sha256.Sum256([]byte(j.Content))
+	sha := hex.EncodeToString(sum[:])
+
 	o := &storage.DbFile{
 		Uid:           1,
 		Name:          j.Name,
@@ -188,6 +201,7 @@ func FilePasteHandler(w http.ResponseWriter, r *http.Request) {
 		IsPaused:      false,
 		RefSubFile:    0,
 		BurnAfterRead: j.BurnAfterRead,
+		SHA256:        sha,
 	}
 	f, err := storage.FileCreate(o)
 	if err != nil {
@@ -466,6 +480,9 @@ func FileReplaceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = storage.FileResetDownloadCount(id)
+	if sha, err := utils.HashFile(new_blob); err == nil {
+		_ = storage.FileSetHash(id, sha)
+	}
 
 	// Old blob is now orphaned — drop it. Done last so a failure above doesn't
 	// leave the file with no on-disk content.
@@ -540,7 +557,15 @@ func FileUpdateHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Policy fields are stored separately to keep FileUpdate's column-list
 	// signature stable; the counter is owned by the download flow.
-	if err := storage.FileUpdatePolicy(id, req.ExpireAt, req.MaxDownloads, req.NotifyMuted, req.BurnAfterRead); err != nil {
+	// Normalise WrapAs to the supported set so a typoed client value doesn't
+	// fall through to the serve path and bypass the switch (which would just
+	// serve raw — but the operator would see an unfamiliar string in the UI).
+	switch req.WrapAs {
+	case "", "none", "zip":
+	default:
+		req.WrapAs = ""
+	}
+	if err := storage.FileUpdatePolicy(id, req.ExpireAt, req.MaxDownloads, req.NotifyMuted, req.BurnAfterRead, req.Watermark, req.Note, req.WrapAs); err != nil {
 		DumpResponse(w, err.Error(), http.StatusInternalServerError, API_ERROR_FILE_DATABASE_FAILED, nil)
 		return
 	}

@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -97,6 +98,24 @@ func GenRandomString(n int) string {
 		buf[i] = lb[int(buf[i])%len(lb)]
 	}
 	return string(buf)
+}
+
+// HashFile returns the hex-encoded sha256 of the file at path. Used by the
+// upload paths to record the blob hash so operators can publish a verified
+// checksum and the serve path can advertise it via X-Content-SHA256 / Digest.
+// The stream is closed before returning so the caller can rename/remove the
+// file on Windows where open handles lock the path.
+func HashFile(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
 func GetExecDir() string {

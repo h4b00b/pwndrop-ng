@@ -40,6 +40,11 @@ func runCleanupTick() {
 	if n := api.ChunkedSweepStale(api.ChunkedDefaultTTL()); n > 0 {
 		log.Info("cleanup: swept %d stale chunked uploads", n)
 	}
+	// Same justification for the rate-limit bucket map — internal memory
+	// hygiene, runs regardless of the user-facing toggle.
+	if n := RateLimitSweepIdle(); n > 0 {
+		log.Debug("cleanup: swept %d idle rate-limit buckets", n)
+	}
 
 	cfg, err := storage.ConfigGet(1)
 	if err != nil || !cfg.CleanupEnabled {

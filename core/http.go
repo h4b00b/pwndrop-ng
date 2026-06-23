@@ -1,11 +1,14 @@
 package core
 
 import (
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/kgretzky/pwndrop/log"
@@ -100,8 +103,102 @@ func (s *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer fo.Close()
 
+	// Wrap kind decides Content-Type / Content-Disposition before anything
+	// else writes to the response — both override the file's normal MIME.
+	var wrap wrapKind
+	var wrapped bool
+	if status == "ok" {
+		wrap, wrapped = wrapInfo(f.WrapAs)
+	}
+	if wrapped {
+		mime_type = wrap.contentType
+		dispName := wrappedFilename(f.Name, wrap)
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename=%q`, dispName))
+		w.Header().Set("X-Content-Wrapped", strings.ToLower(f.WrapAs))
+	}
 	w.Header().Set("Content-Type", mime_type)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
+
+	// Watermark: append a per-download tag so a leaked sample maps back to
+	// IP/UA/timestamp. Only on real serves, never on the paused facade. With
+	// watermark on, the served bytes differ from the stored blob, so the
+	// SHA256/Digest headers would lie — suppress them and surface an
+	// X-Content-Watermarked flag instead.
+	var watermarkTag string
+	var watermarkSuffix []byte
+	if status == "ok" && f.Watermark {
+		watermarkTag = utils.GenRandomString(32)
+		watermarkSuffix = []byte("\x00PWN:" + watermarkTag + "\n")
+	}
+	if watermarkTag != "" {
+		w.Header().Set("X-Content-Watermarked", "true")
+	}
+	// SHA256 / Digest only reflect the stored blob; with watermark or wrap
+	// the served bytes differ, so we don't advertise a hash we can't honour.
+	if status == "ok" && !wrapped && watermarkTag == "" && f.SHA256 != "" {
+		// Advertise the stored-blob hash so the target can verify what they
+		// fetched. Skip when watermarking — different bytes every fetch. Skip
+		// for the paused facade — those bytes aren't the blob the SHA describes.
+		// Digest is RFC 3230 (base64), X-Content-SHA256 is the operator-friendly
+		// hex twin.
+		if raw, err := hex.DecodeString(f.SHA256); err == nil && len(raw) == 32 {
+			w.Header().Set("X-Content-SHA256", f.SHA256)
+			w.Header().Set("Digest", "sha-256="+base64.StdEncoding.EncodeToString(raw))
+		}
+	}
+
+	// Range / Resume serving — opt-in via DbConfig.RangeEnabled and only safe
+	// when no per-file policy ties downloads to a single body delivery. Quota
+	// would count each partial as a hit; burn-after-read would fire on the
+	// first range request and orphan the resume. Facade serving never honors
+	// Range because the sub-file bytes are intentionally throwaway. Watermark
+	// breaks Range too — partial fetches would not see the appended suffix.
+	useRange := !needsLock && status == "ok" && watermarkTag == "" && !wrapped && cfg != nil && cfg.RangeEnabled
+	if useRange {
+		rangeStatus := status
+		if r.Header.Get("Range") != "" {
+			rangeStatus = "ok-range"
+		}
+		// Zero modtime suppresses Last-Modified / If-Modified-Since handling —
+		// we want every fetch logged, not served from the client cache. The
+		// name arg is only used by ServeContent for Content-Type sniffing,
+		// which we've already overridden via the Header().Set above.
+		http.ServeContent(w, r, f.Name, time.Time{}, fo)
+		logBlock(f, r, from_ip, rangeStatus, muted)
+		return
+	}
+
+	if wrapped {
+		// Wrap path: container is built around the blob (and any watermark
+		// suffix) and streamed. Content-Length is unknown ahead of time, so
+		// we let Go fall back to chunked transfer-encoding. Counter / burn
+		// behaviour mirrors the raw path — but with no FileSize ground-truth
+		// we settle for "no copy error" as the delivery signal.
+		w.WriteHeader(200)
+		n, werr := serveWrapped(w, f.WrapAs, fo, f.Name, watermarkSuffix)
+		if werr != nil {
+			log.Error("http: wrap: %s: wrote %d err=%v (%s)", f.Filename, n, werr, from_ip)
+			logBlock(f, r, from_ip, "aborted-wrap", muted)
+			return
+		}
+		if cnt, err := storage.FileIncrementDownloads(f.ID); err == nil {
+			if f.MaxDownloads > 0 && cnt >= f.MaxDownloads {
+				storage.FileEnable(f.ID, false)
+			}
+		}
+		logBlockWatermark(f, r, from_ip, status+"-wrap", watermarkTag, muted)
+		if f.BurnAfterRead && status == "ok" {
+			fo.Close()
+			BurnFile(f.ID)
+		}
+		return
+	}
+
+	if watermarkTag != "" {
+		// Set Content-Length explicitly so clients with strict length checks
+		// don't trip on the extra suffix bytes.
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", f.FileSize+int64(len(watermarkSuffix))))
+	}
 	w.WriteHeader(200)
 	written, copyErr := io.Copy(w, fo)
 	// Only credit a real delivery: scanner GETs that hang up after headers,
@@ -115,12 +212,21 @@ func (s *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		logBlock(f, r, from_ip, "aborted", muted)
 		return
 	}
+	// Append the watermark suffix AFTER the full body so the client gets the
+	// blob plus tag in one contiguous response. If the suffix write fails,
+	// we still log the tag — the operator at least knows it was minted and
+	// (probably) reached the wire.
+	if len(watermarkSuffix) > 0 {
+		if _, err := w.Write(watermarkSuffix); err != nil {
+			log.Error("http: watermark write: %s (%s)", err, from_ip)
+		}
+	}
 	if n, err := storage.FileIncrementDownloads(f.ID); err == nil {
 		if f.MaxDownloads > 0 && n >= f.MaxDownloads {
 			storage.FileEnable(f.ID, false)
 		}
 	}
-	logBlock(f, r, from_ip, status, muted)
+	logBlockWatermark(f, r, from_ip, status, watermarkTag, muted)
 	// Burn-after-read: nuke the record + blob once the body is fully written.
 	// Guarded by status="ok" so a paused-facade serve does not consume the
 	// burn. Close the handle first so the blob delete succeeds on Windows
