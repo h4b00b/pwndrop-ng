@@ -33,6 +33,17 @@
       KILL SWITCH ACTIVE — every public download returns 404
     </div>
 
+    <div v-if="!isDead && session.isLoggedIn && update.available" class="update-banner">
+      <i class="fas fa-cloud-download-alt"></i>
+      New version <strong>{{ update.latest }}</strong> available
+      (you have {{ update.current }}) ·
+      <a :href="update.release_url" target="_blank" rel="noopener">release notes</a>
+      <button class="btn btn-sm btn-primary update-btn" :disabled="update.applying" @click="applyUpdate()">
+        <span v-if="!update.applying">Update now</span>
+        <span v-else><i class="fas fa-spinner fa-spin"></i> Updating…</span>
+      </button>
+    </div>
+
     <div class="bg-title">
       <a href="#/"><img src="/img/pwndrop-title.png" alt="pwndrop NG" /></a>
     </div>
@@ -256,6 +267,13 @@ export default {
       filtersShow: false,
       killOn: false,
       version: '-',
+      update: {
+        available: false,
+        applying: false,
+        current: '',
+        latest: '',
+        release_url: '',
+      },
     }
   },
   computed: {
@@ -363,6 +381,60 @@ export default {
         })
         .catch((error) => console.log(error))
     },
+    checkUpdate() {
+      api
+        .get('/update/check')
+        .then((response) => {
+          const d = response.data.data || {}
+          this.update.available = !!d.available
+          this.update.current = d.current || ''
+          this.update.latest = d.latest || ''
+          this.update.release_url = d.release_url || ''
+        })
+        .catch(() => {
+          // silent — no network / no release shouldn't pester the admin
+        })
+    },
+    applyUpdate() {
+      if (!confirm(`Update to version ${this.update.latest}? The service will restart.`)) return
+      this.update.applying = true
+      api
+        .post('/update/apply')
+        .then(() => {
+          // Server re-execs ~250ms after the response. Poll /version until the
+          // reported version changes, then reload.
+          this.pollForRestart(this.update.current)
+        })
+        .catch((e) => {
+          this.update.applying = false
+          alert('Update failed: ' + (e?.response?.data?.message || e.message))
+        })
+    },
+    pollForRestart(oldVersion, attempt = 0) {
+      if (attempt > 60) {
+        this.update.applying = false
+        alert('Update started but the service did not come back within 2 minutes. Check server logs.')
+        return
+      }
+      setTimeout(() => {
+        api
+          .get('/version')
+          .then((r) => {
+            const v = r?.data?.data?.version
+            if (v && v !== oldVersion) {
+              window.location.reload()
+            } else {
+              this.pollForRestart(oldVersion, attempt + 1)
+            }
+          })
+          .catch(() => this.pollForRestart(oldVersion, attempt + 1))
+      }, 2000)
+    },
+  },
+  watch: {
+    'session.isLoggedIn'(v) {
+      if (v) this.checkUpdate()
+    },
   },
   created() {
     this.syncVersion()
@@ -403,6 +475,28 @@ export default {
 }
 .kill-banner .fas {
   margin-right: 6px;
+}
+.update-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #1565c0;
+  color: #fff;
+  text-align: center;
+  padding: 6px 12px;
+  font-size: 13px;
+  z-index: 1099;
+}
+.update-banner .fas {
+  margin-right: 6px;
+}
+.update-banner a {
+  color: #fff;
+  text-decoration: underline;
+}
+.update-btn {
+  margin-left: 12px;
 }
 @keyframes kill-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(198,40,40,0.7); }
