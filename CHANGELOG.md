@@ -1,3 +1,10 @@
+****v2.0.10****
+- [x] Dark-theme polish for the Edit modal: `select.form-control` and `textarea.form-control` were inheriting the Bootstrap default (white background, near-invisible chevron) — the dark rules only targeted `input.form-control`. Unified the three control types under one selector so Auto-wrap, paste-MIME picker, and Operator note now sit on `--pwn-black` with a light-grey SVG chevron painted in CSS (the native OS chevron is hidden via `appearance: none`).
+- [x] Same fix path also covers the readonly SHA-256 field: Bootstrap's `[readonly]` background (`#e9ecef`) was bleeding through and turning the chip light-grey on the otherwise-dark form. `input.form-control[readonly]` / `textarea.form-control[readonly]` now keep the dark background; focus is no-op (no border swap, no glow) so the cursor signals "you can't type here" without re-painting.
+- [x] Textarea radius softened from the 21 px pill (correct for single-line inputs) down to 12 px so multi-line content doesn't get clipped at the rounded corners.
+- [x] Unified placeholder colour (`--pwn-slite` at 70 % opacity) across input/select/textarea — some placeholders were defaulting to a near-black grey that disappeared on the dark form.
+- [x] Version constant bumped to `2.0.10`; frontend `package.json` synced.
+
 ****v2.0.9****
 - [x] Admin QoL: live filter bar above the file list (matches on name / url_path / mime / note, case-insensitive) with a `N of M` counter. Pure client-side filter over the already-loaded `uploads` array, no extra round-trip; hidden when the list is empty so first-time users still see a clean canvas.
 - [x] Admin QoL: per-file download counter chip on each row (`↓ N` or `↓ N/M` when `MaxDownloads>0`). Tooltip spells out `used of cap`; chip turns red when the quota is hit so an exhausted single-shot link is visible at a glance. Reuses `download_count` and `max_downloads` already on the file-list response — zero backend change.

@@ -89,17 +89,67 @@ hr {
     background-color: var(--pwn-black);
 }
 
-input.form-control {
+input.form-control,
+select.form-control,
+textarea.form-control {
 	background-color: var(--pwn-black);
 	border-radius: 21px;
 	border: 1px solid var(--pwn-med);
 	color: #aaa;
 }
 
-input.form-control:focus {
+/* Textarea: rounded pill looks odd on a multi-line block; use a softer radius
+   so the corners frame the text without clipping descenders. */
+textarea.form-control {
+	border-radius: 12px;
+}
+
+input.form-control:focus,
+select.form-control:focus,
+textarea.form-control:focus {
 	color: #ddd;
 	background-color: var(--pwn-dark);
 	border-color: var(--pwn-lite);
+}
+
+/* Native <select> caret on a dark background defaults to a near-invisible
+   black glyph (WebKit/Blink). Paint a light SVG chevron and hide the OS one. */
+select.form-control {
+	appearance: none;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%23aaa' stroke-width='1.5' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 14px center;
+	background-size: 10px 6px;
+	padding-right: 32px;
+}
+select.form-control option {
+	background-color: var(--pwn-black);
+	color: #ddd;
+}
+
+/* Bootstrap defaults readonly inputs to a light gray (#e9ecef) which clashes
+   with the dark theme. Keep them visually identical to editable inputs — the
+   cursor + lack of focus border already signal non-editability. */
+input.form-control[readonly],
+textarea.form-control[readonly] {
+	background-color: var(--pwn-black);
+	color: #aaa;
+}
+input.form-control[readonly]:focus,
+textarea.form-control[readonly]:focus {
+	background-color: var(--pwn-black);
+	border-color: var(--pwn-med);
+	color: #aaa;
+	box-shadow: none;
+}
+
+/* Placeholder color across all three control types — Bootstrap default is a
+   near-black on dark which disappears. */
+.form-control::placeholder {
+	color: var(--pwn-slite);
+	opacity: 0.7;
 }
 
 .btn-outline-secondary {
