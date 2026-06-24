@@ -89,6 +89,13 @@
                 </button>
               </div>
             </div>
+            <div class="expire-presets">
+              <button type="button" class="btn btn-sm btn-outline-secondary" @click="setExpirePreset(3600)">+1h</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" @click="setExpirePreset(86400)">+1d</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" @click="setExpirePreset(604800)">+7d</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" @click="setExpirePreset(2592000)">+30d</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" @click="file_edit.expire_local = ''">Never</button>
+            </div>
           </div>
         </div>
         <div class="form-group row">
@@ -376,8 +383,30 @@
       </div>
     </div>
 
+    <div class="row row-search" v-if="uploads.length > 0">
+      <div class="col-xs-12 col-sm-8 offset-sm-2 col-md-6 offset-md-3">
+        <div class="input-group search-bar">
+          <input
+            type="text"
+            class="form-control"
+            v-model="search"
+            spellcheck="false"
+            placeholder="Filter by name, path, mime or note…"
+          >
+          <div class="input-group-append" v-if="search">
+            <button class="btn btn-secondary" type="button" @click="search = ''" v-tooltip:left="'Clear'">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+        <small class="search-count" v-if="search">
+          {{ filteredUploads.length }} of {{ uploads.length }}
+        </small>
+      </div>
+    </div>
+
     <transition-group name="upload-list">
-      <div class="row upload-block" v-for="upload in uploads" :key="upload.key">
+      <div class="row upload-block" v-for="upload in filteredUploads" :key="upload.key">
         <FileItem
           :file="upload"
           :selected="selected.includes(upload.id)"
@@ -448,6 +477,7 @@ export default {
         replace_status: '',
       },
       selected: [],
+      search: '',
       qrShow: false,
       qrUrl: '',
       pasteShow: false,
@@ -472,6 +502,18 @@ export default {
         this.file_edit.url_path &&
         (this.file_edit.ref_sub_file == 0 || (this.file_edit.sub_name && this.file_edit.sub_mime_type))
       )
+    },
+    filteredUploads() {
+      const q = this.search.trim().toLowerCase()
+      if (!q) return this.uploads
+      return this.uploads.filter((u) => {
+        return (
+          (u.name && u.name.toLowerCase().includes(q)) ||
+          (u.url_path && u.url_path.toLowerCase().includes(q)) ||
+          (u.mime_type && u.mime_type.toLowerCase().includes(q)) ||
+          (u.note && u.note.toLowerCase().includes(q))
+        )
+      })
     },
   },
   methods: {
@@ -909,6 +951,10 @@ export default {
         }
       })
     },
+    setExpirePreset(seconds) {
+      const ts = Math.floor(Date.now() / 1000) + seconds
+      this.file_edit.expire_local = this.tsToLocalInput(ts)
+    },
     tsToLocalInput(ts) {
       if (!ts) return ''
       const d = new Date(ts * 1000)
@@ -1078,6 +1124,30 @@ export default {
 .sha-input {
   font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
   font-size: 12px;
+}
+.row-search {
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+.search-bar {
+  font-size: 14px;
+}
+.search-count {
+  display: block;
+  font-size: 11px;
+  color: var(--pwn-slite);
+  margin-top: 4px;
+  text-align: right;
+}
+.expire-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.expire-presets .btn {
+  font-size: 11px;
+  padding: 2px 8px;
 }
 .bulk-bar {
   position: fixed;

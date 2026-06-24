@@ -41,6 +41,14 @@
       </div>
       <div class="d-none d-sm-block col-auto shrink text-right clip">
         <span class="fsize">{{ $prettyBytes(file.fsize) }}</span>
+        <span
+          v-if="file.download_count > 0 || file.max_downloads > 0"
+          class="dl-count"
+          :class="quotaHit ? 'dl-count-hit' : ''"
+          v-tooltip:top="quotaTip">
+          <i class="fas fa-download"></i>
+          {{ file.download_count || 0 }}<template v-if="file.max_downloads > 0">/{{ file.max_downloads }}</template>
+        </span>
       </div>
       <div class="controls">
         <button class="btn btn-sm btn-danger btn-circle-sm" @click="deleteItem(file.id)">
@@ -107,6 +115,17 @@ export default {
     selected: { type: Boolean, default: false },
   },
   emits: ['editFile', 'enableFile', 'pauseFile', 'deleteFile', 'toggleSelect', 'showQr', 'rotateFile'],
+  computed: {
+    quotaHit() {
+      return this.file.max_downloads > 0 && this.file.download_count >= this.file.max_downloads
+    },
+    quotaTip() {
+      if (this.file.max_downloads > 0) {
+        return `${this.file.download_count || 0} of ${this.file.max_downloads} downloads used`
+      }
+      return `${this.file.download_count || 0} downloads served`
+    },
+  },
   methods: {
     copyHttpUrl() {
       const l = window.location
@@ -151,5 +170,25 @@ export default {
 /* Make the select-button slightly more discoverable when it's "off". */
 .select-btn {
   background: transparent;
+}
+.dl-count {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 1px 7px;
+  font-size: 11px;
+  line-height: 1.4;
+  border-radius: 10px;
+  background: var(--pwn-black-hr);
+  color: var(--pwn-slite);
+  vertical-align: middle;
+}
+.dl-count i {
+  font-size: 10px;
+  margin-right: 3px;
+  opacity: 0.7;
+}
+.dl-count-hit {
+  background: #6b3030;
+  color: #ffb3b3;
 }
 </style>
