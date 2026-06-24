@@ -5,7 +5,7 @@
   </p>
 </p>
 
-> **pwndrop NG** is a fork of the original **pwndrop** by Kuba Gretzky ([@mrgretzky](https://twitter.com/mrgretzky)), maintained by **Hab00b**. It keeps the upstream feature set and license (GPL3) and layers on top API tokens, download notifications & log, per-file delivery controls (expire / quota / password), a target-filter chain for anti-sandbox use, paste + burn-after-read, a kill switch, a modernized Vue 3 / Vite frontend, and a full security-hardening pass (see [CHANGELOG.md](CHANGELOG.md)).
+> **pwndrop NG** is a fork of the original **pwndrop** by Kuba Gretzky ([@mrgretzky](https://twitter.com/mrgretzky)), maintained by **Hab00b**. Same upstream feature set and license (GPL3), plus operator tooling (API tokens, notifications, per-file delivery controls, target filters, kill switch), red-team niceties (paste, burn-after-read, watermarking, auto-wrap), a Cloudflare-friendly chunked uploader, in-place self-update, a Vue 3 / Vite frontend, and a full hardening pass. Full list in [CHANGELOG.md](CHANGELOG.md).
 
 **pwndrop** is a self-deployable file hosting service for sending out red teaming payloads or securely sharing your private files over HTTP and WebDAV.
 
@@ -29,17 +29,18 @@ With **pwndrop** you can:
 - [x] Never worry about setting up HTTPS certificates as **pwndrop** does everything for you in the background (including auto-renewals).
 
 With **pwndrop NG** you also can:
-- [x] Issue long-lived **API tokens** and drive uploads / management from `curl`, PowerShell or any script (Bearer header or `X-Pwndrop-Token`).
-- [x] Get **download notifications** in real time via generic JSON webhook, Telegram or Slack, with a configurable status allowlist to cut scanner noise.
-- [x] Inspect a persistent **download log** (IP, User-Agent, Referer, status, timestamp) directly from the panel.
-- [x] Configure **per-file delivery controls**: expiry timestamp, max-downloads quota (1 = one-time link), and bcrypt-hashed access password served as HTTP Basic.
-- [x] Apply a **target-filter chain** (IP literal, CIDR, country via GeoIP, User-Agent regex) with `allow` / `deny` / `facade` / `redirect` actions — perfect for anti-sandbox and operator-scoped delivery — per-file or global, evaluated before the password prompt.
-- [x] **Paste text** straight into a hosted entry (bash, PowerShell, JSON, HTML, …) and ship it through the same delivery pipeline.
-- [x] Enable **burn-after-read** so the first successful download wipes the record, the blob and the per-file rules.
-- [x] Hit a global **kill switch** to 404-out every public download instantly while keeping the admin panel reachable.
-- [x] **Bulk-act** on multiple files (enable / disable / pause / unpause / delete), **re-upload** behind an existing URL, **rotate** the random folder of a burned link, and grab a **QR code** for any payload URL.
-- [x] Get a **rule tester** and **per-rule hit counter** so you can verify filter behavior without spinning up a real client.
-- [x] Deploy as a **single static binary** for `linux/amd64` or `linux/arm64` — frontend is built with Vite and embedded into the binary via `go:embed`, no `admin/` directory to ship alongside.
+- [x] Drive uploads and management from scripts via long-lived API tokens (Bearer or `X-Pwndrop-Token`).
+- [x] Receive download notifications via JSON webhook, Telegram or Slack, and browse a persistent download log.
+- [x] Set per-file expiry, max-downloads quota, and a bcrypt access password.
+- [x] Filter targets by IP, CIDR, country (GeoIP), ASN, or User-Agent regex with `allow` / `deny` / `facade` / `redirect` actions — per-file or global.
+- [x] Paste text directly into a hosted entry and serve it through the same pipeline.
+- [x] Use burn-after-read, a global kill switch, per-download watermarking, and auto-wrap to `.zip` at serve time.
+- [x] Upload >100 MB through a Cloudflare proxy via the built-in chunked uploader.
+- [x] Get SHA256 integrity headers and RFC-7233 Range/resume on untampered deliveries.
+- [x] Bulk-act on files, re-upload behind an existing URL, rotate the random folder, attach an operator note, get a QR code.
+- [x] Test filter rules and watch per-rule hit counters without spinning up a real client.
+- [x] Self-update in place from the admin UI (streams the GitHub release tarball and re-execs the running binary).
+- [x] Deploy as a single static binary for `linux/amd64` or `linux/arm64` — frontend embedded via `go:embed`.
 
 Its main goal is to make file sharing as easy and intuitive as possible, while implementing extra features to aid in red team assessments.
 
